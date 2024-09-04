@@ -19,11 +19,11 @@
 		"prepare": "husky install"
 	},
 	"dependencies": {
+		"@permaweb/api": "file:../ao-permaweb/api",
 		"@fontsource/inter": "^5.0.20",
 		"@fontsource/quantico": "^5.0.20",
 		"@irys/sdk": "^0.2.10",
 		"@othent/kms": "^1.0.7",
-		"@permaweb/aoconnect": "^0.0.45",
 		"jwt-decode": "^4.0.0",
 		"react": "^18.2.0",
 		"react-chartjs-2": "^5.2.0",

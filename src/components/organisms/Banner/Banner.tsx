@@ -1,7 +1,5 @@
 import React from 'react';
 
-import { createDataItemSigner, message, result } from '@permaweb/aoconnect';
-
 import { Button } from 'components/atoms/Button';
 import { Notification } from 'components/atoms/Notification';
 import { Modal } from 'components/molecules/Modal';
@@ -34,72 +32,72 @@ import * as S from './styles';
 // 	return patch;
 // }
 
-function creditNoticeForwarding() {
-	const creditNoticeForwarding = `Handlers.add('Credit-Notice', Handlers.utils.hasMatchingTag('Action', 'Credit-Notice'),
-	function(msg)
-		if not msg.Tags.Sender or not msg.Tags.Quantity then
-            ao.send({
-                Target = msg.From,
-                Action = 'Input-Error',
-                Tags = {
-                    Status = 'Error',
-                    Message =
-                    'Invalid arguments, required { Sender, Quantity }'
-                }
-            })
-            return
-        end
+// function creditNoticeForwarding() {
+// 	const creditNoticeForwarding = `Handlers.add('Credit-Notice', Handlers.utils.hasMatchingTag('Action', 'Credit-Notice'),
+// 	function(msg)
+// 		if not msg.Tags.Sender or not msg.Tags.Quantity then
+//             ao.send({
+//                 Target = msg.From,
+//                 Action = 'Input-Error',
+//                 Tags = {
+//                     Status = 'Error',
+//                     Message =
+//                     'Invalid arguments, required { Sender, Quantity }'
+//                 }
+//             })
+//             return
+//         end
 
-        local asset_index = -1
-        for i, asset in ipairs(Assets) do
-            if asset.Id == msg.From then
-                asset_index = i
-                break
-            end
-        end
+//         local asset_index = -1
+//         for i, asset in ipairs(Assets) do
+//             if asset.Id == msg.From then
+//                 asset_index = i
+//                 break
+//             end
+//         end
 
-		if asset_index > -1 then
-            local updated_quantity = tonumber(Assets[asset_index].Quantity) + tonumber(msg.Tags.Quantity)
+// 		if asset_index > -1 then
+//             local updated_quantity = tonumber(Assets[asset_index].Quantity) + tonumber(msg.Tags.Quantity)
 
-            Assets[asset_index].Quantity = tostring(updated_quantity)
-        else
-            table.insert(Assets, { Id = msg.From, Quantity = msg.Tags.Quantity })
+//             Assets[asset_index].Quantity = tostring(updated_quantity)
+//         else
+//             table.insert(Assets, { Id = msg.From, Quantity = msg.Tags.Quantity })
 
-            ao.send({
-                Target = Owner,
-                Action = 'Transfer-Success',
-                Tags = {
-                    Status = 'Success',
-                    Message = 'Balance transferred'
-                }
-            })
-        end
+//             ao.send({
+//                 Target = Owner,
+//                 Action = 'Transfer-Success',
+//                 Tags = {
+//                     Status = 'Success',
+//                     Message = 'Balance transferred'
+//                 }
+//             })
+//         end
 
-		if msg.Tags.Sender ~= Owner then
-			local walletTransferTokens = { 'xU9zFkq3X2ZQ6olwNVvr1vUWIjc3kXTWr7xKQD6dh10' }
-			local runWalletTransfer = false
-			for _, value in pairs(walletTransferTokens) do
-				if value == msg.From then
-					runWalletTransfer = true
-					break
-				end
-			end
+// 		if msg.Tags.Sender ~= Owner then
+// 			local walletTransferTokens = { 'xU9zFkq3X2ZQ6olwNVvr1vUWIjc3kXTWr7xKQD6dh10' }
+// 			local runWalletTransfer = false
+// 			for _, value in pairs(walletTransferTokens) do
+// 				if value == msg.From then
+// 					runWalletTransfer = true
+// 					break
+// 				end
+// 			end
 
-			if runWalletTransfer then
-				ao.send({
-					Target = msg.From,
-					Action = 'Transfer',
-					Tags = {
-						Recipient = Owner,
-						Quantity = msg.Tags.Quantity
-					}
-				})
-			end
-		end
-	end)
-	`;
-	return creditNoticeForwarding;
-}
+// 			if runWalletTransfer then
+// 				ao.send({
+// 					Target = msg.From,
+// 					Action = 'Transfer',
+// 					Tags = {
+// 						Recipient = Owner,
+// 						Quantity = msg.Tags.Quantity
+// 					}
+// 				})
+// 			end
+// 		end
+// 	end)
+// 	`;
+// 	return creditNoticeForwarding;
+// }
 
 export default function Banner() {
 	const arProvider = useArweaveProvider();
@@ -109,9 +107,9 @@ export default function Banner() {
 
 	const [updateApplied, setUpdateApplied] = React.useState<boolean>(true);
 
-	const [loading, setLoading] = React.useState<boolean>(false);
+	const [loading, _setLoading] = React.useState<boolean>(false);
 	const [response, setResponse] = React.useState<NotificationType | null>(null);
-	const [processed, setProcessed] = React.useState<boolean>(false);
+	const [processed, _setProcessed] = React.useState<boolean>(false);
 
 	// Patch
 	// React.useEffect(() => {
@@ -152,64 +150,68 @@ export default function Banner() {
 		})();
 	}, [arProvider.walletAddress, arProvider.profile]);
 
+	// async function handleUpdate() {
+	// 	if (arProvider.wallet && arProvider.profile && arProvider.profile.id) {
+	// 		setLoading(true);
+	// 		try {
+	// 			// Patch
+	// 			// const evalMessage = await message({
+	// 			// 	process: arProvider.profile.id,
+	// 			// 	signer: createDataItemSigner(arProvider.wallet),
+	// 			// 	tags: [{ name: 'Action', value: 'Eval' }],
+	// 			// 	data: patch(),
+	// 			// });
+
+	// 			// Credit notice forwarding
+	// 			const evalVersionMessage = await message({
+	// 				process: arProvider.profile.id,
+	// 				signer: createDataItemSigner(arProvider.wallet),
+	// 				tags: [{ name: 'Action', value: 'Eval' }],
+	// 				data: `Profile.Version = '0.0.1'`,
+	// 			});
+
+	// 			console.log(evalVersionMessage);
+
+	// 			const evalUpdateMessage = await message({
+	// 				process: arProvider.profile.id,
+	// 				signer: createDataItemSigner(arProvider.wallet),
+	// 				tags: [{ name: 'Action', value: 'Eval' }],
+	// 				data: creditNoticeForwarding(),
+	// 			});
+
+	// 			console.log(evalUpdateMessage);
+
+	// 			const evalResult = await result({
+	// 				message: evalUpdateMessage,
+	// 				process: arProvider.profile.id,
+	// 			});
+
+	// 			console.log(evalResult);
+
+	// 			setProcessed(true);
+
+	// 			if (evalResult) {
+	// 				setResponse({
+	// 					message: 'Profile updated!',
+	// 					status: 'success',
+	// 				});
+	// 				setUpdateApplied(true);
+	// 				arProvider.setToggleProfileUpdate(!arProvider.toggleProfileUpdate);
+	// 			} else {
+	// 				setResponse({
+	// 					message: 'Error updating profile',
+	// 					status: 'warning',
+	// 				});
+	// 			}
+	// 		} catch (e: any) {
+	// 			console.error(e);
+	// 		}
+	// 		setLoading(false);
+	// 	}
+	// }
+
 	async function handleUpdate() {
-		if (arProvider.wallet && arProvider.profile && arProvider.profile.id) {
-			setLoading(true);
-			try {
-				// Patch
-				// const evalMessage = await message({
-				// 	process: arProvider.profile.id,
-				// 	signer: createDataItemSigner(arProvider.wallet),
-				// 	tags: [{ name: 'Action', value: 'Eval' }],
-				// 	data: patch(),
-				// });
-
-				// Credit notice forwarding
-				const evalVersionMessage = await message({
-					process: arProvider.profile.id,
-					signer: createDataItemSigner(arProvider.wallet),
-					tags: [{ name: 'Action', value: 'Eval' }],
-					data: `Profile.Version = '0.0.1'`,
-				});
-
-				console.log(evalVersionMessage);
-
-				const evalUpdateMessage = await message({
-					process: arProvider.profile.id,
-					signer: createDataItemSigner(arProvider.wallet),
-					tags: [{ name: 'Action', value: 'Eval' }],
-					data: creditNoticeForwarding(),
-				});
-
-				console.log(evalUpdateMessage);
-
-				const evalResult = await result({
-					message: evalUpdateMessage,
-					process: arProvider.profile.id,
-				});
-
-				console.log(evalResult);
-
-				setProcessed(true);
-
-				if (evalResult) {
-					setResponse({
-						message: 'Profile updated!',
-						status: 'success',
-					});
-					setUpdateApplied(true);
-					arProvider.setToggleProfileUpdate(!arProvider.toggleProfileUpdate);
-				} else {
-					setResponse({
-						message: 'Error updating profile',
-						status: 'warning',
-					});
-				}
-			} catch (e: any) {
-				console.error(e);
-			}
-			setLoading(false);
-		}
+		console.log('Run update');
 	}
 
 	return (

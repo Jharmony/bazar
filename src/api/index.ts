@@ -2,7 +2,7 @@ import { dispatch } from '@othent/kms';
 
 import Arweave from 'arweave';
 import { ArweaveWebIrys } from '@irys/sdk/build/esm/web/tokens/arweave';
-import { createDataItemSigner, dryrun, message, result, results } from '@permaweb/aoconnect';
+import { aoDryRun, aoMessageResult, aoMessageResults, aoSend } from '@permaweb/api';
 
 import { CONTENT_TYPES, CURSORS, GATEWAYS, PAGINATORS, UPLOAD_CONFIG } from 'helpers/config';
 import {
@@ -15,7 +15,7 @@ import {
 	TagType,
 	UploadMethodType,
 } from 'helpers/types';
-import { getByteSize, getTagValue } from 'helpers/utils';
+import { getByteSize } from 'helpers/utils';
 
 export async function getGQLData(args: GQLArgsType): Promise<DefaultGQLResponseType> {
 	const paginator = args.paginator ? args.paginator : PAGINATORS.default;
@@ -250,50 +250,21 @@ export async function messageResult(args: {
 	useRawData?: boolean;
 }): Promise<any> {
 	try {
-		const tags = [{ name: 'Action', value: args.action }];
-		if (args.tags) tags.push(...args.tags);
-
-		const data = args.useRawData ? args.data : JSON.stringify(args.data);
-
-		const txId = await message({
-			process: args.processId,
-			signer: createDataItemSigner(args.wallet),
-			tags: tags,
-			data: data,
+		const txId = await aoSend({
+			processId: args.processId,
+			wallet: args.wallet,
+			action: args.action,
+			tags: args.tags,
+			data: args.data,
 		});
 
-		const { Messages } = await result({ message: txId, process: args.processId });
+		const response = await aoMessageResult({
+			messageId: txId,
+			processId: args.processId,
+			messageAction: args.action,
+		});
 
-		if (Messages && Messages.length) {
-			const response = {};
-
-			Messages.forEach((message: any) => {
-				const action = getTagValue(message.Tags, 'Action') || args.action;
-
-				let responseData = null;
-				const messageData = message.Data;
-
-				if (messageData) {
-					try {
-						responseData = JSON.parse(messageData);
-					} catch {
-						responseData = messageData;
-					}
-				}
-
-				const responseStatus = getTagValue(message.Tags, 'Status');
-				const responseMessage = getTagValue(message.Tags, 'Message');
-
-				response[action] = {
-					id: txId,
-					status: responseStatus,
-					message: responseMessage,
-					data: responseData,
-				};
-			});
-
-			return response;
-		} else return null;
+		return response;
 	} catch (e) {
 		console.error(e);
 	}
@@ -309,79 +280,17 @@ export async function messageResults(args: {
 	handler?: string;
 }): Promise<any> {
 	try {
-		const tags = [{ name: 'Action', value: args.action }];
-		if (args.tags) tags.push(...args.tags);
-
-		await message({
-			process: args.processId,
-			signer: createDataItemSigner(args.wallet),
-			tags: tags,
-			data: JSON.stringify(args.data),
+		const response = await aoMessageResults({
+			processId: args.processId,
+			wallet: args.wallet,
+			action: args.action,
+			tags: args.tags,
+			data: args.data,
+			responses: args.responses,
+			handler: args.handler,
 		});
 
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-
-		const messageResults = await results({
-			process: args.processId,
-			sort: 'DESC',
-			limit: 100,
-		});
-
-		if (messageResults && messageResults.edges && messageResults.edges.length) {
-			const response = {};
-
-			for (const result of messageResults.edges) {
-				if (result.node && result.node.Messages && result.node.Messages.length) {
-					const resultSet = [args.action];
-					if (args.responses) resultSet.push(...args.responses);
-
-					for (const message of result.node.Messages) {
-						const action = getTagValue(message.Tags, 'Action');
-
-						if (action) {
-							let responseData = null;
-							const messageData = message.Data;
-
-							if (messageData) {
-								try {
-									responseData = JSON.parse(messageData);
-								} catch {
-									responseData = messageData;
-								}
-							}
-
-							const responseStatus = getTagValue(message.Tags, 'Status');
-							const responseMessage = getTagValue(message.Tags, 'Message');
-
-							if (action === 'Action-Response') {
-								const responseHandler = getTagValue(message.Tags, 'Handler');
-								if (args.handler && args.handler === responseHandler) {
-									response[action] = {
-										status: responseStatus,
-										message: responseMessage,
-										data: responseData,
-									};
-								}
-							} else {
-								if (resultSet.includes(action)) {
-									response[action] = {
-										status: responseStatus,
-										message: responseMessage,
-										data: responseData,
-									};
-								}
-							}
-
-							if (Object.keys(response).length === resultSet.length) break;
-						}
-					}
-				}
-			}
-
-			return response;
-		}
-
-		return null;
+		return response;
 	} catch (e) {
 		console.error(e);
 	}
@@ -393,27 +302,17 @@ export async function readHandler(args: {
 	tags?: TagType[];
 	data?: any;
 }): Promise<any> {
-	const tags = [{ name: 'Action', value: args.action }];
-	if (args.tags) tags.push(...args.tags);
-	let data = JSON.stringify(args.data || {});
-
-	const response = await dryrun({
-		process: args.processId,
-		tags: tags,
-		data: data,
-	});
-
-	if (response.Messages && response.Messages.length) {
-		if (response.Messages[0].Data) {
-			return JSON.parse(response.Messages[0].Data);
-		} else {
-			if (response.Messages[0].Tags) {
-				return response.Messages[0].Tags.reduce((acc: any, item: any) => {
-					acc[item.name] = item.value;
-					return acc;
-				}, {});
-			}
-		}
+	try {
+		const response = await aoDryRun({
+			processId: args.processId,
+			action: args.action,
+			tags: args.tags || null,
+			data: args.data || null,
+		});
+		return response;
+	} catch (e) {
+		console.error(e);
+		return null;
 	}
 }
 

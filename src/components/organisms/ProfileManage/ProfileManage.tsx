@@ -1,9 +1,9 @@
 import React from 'react';
 import { ReactSVG } from 'react-svg';
 
-import { connect, createDataItemSigner } from '@permaweb/aoconnect';
+import { aoMessageResult, aoSend, aoSpawn } from '@permaweb/api';
 
-import { createTransaction, getGQLData, messageResult } from 'api';
+import { createTransaction, getGQLData } from 'api';
 
 import { Button } from 'components/atoms/Button';
 import { FormField } from 'components/atoms/FormField';
@@ -114,9 +114,8 @@ export default function ProfileManage(props: IProps) {
 					}
 				}
 			}
-			// send undefined
+
 			const getFieldDataChanged = (profileValue, newValue) => {
-				// if new is '' and profilevalue is not empty, then clear
 				if ((newValue === '' || newValue == null) && Boolean(profileValue)) {
 					return '';
 				}
@@ -126,7 +125,7 @@ export default function ProfileManage(props: IProps) {
 					return undefined;
 				}
 			};
-			// either send undefined if no change, or '' if clear, or a value.
+
 			data.UserName = getFieldDataChanged(props.profile?.username, username);
 			data.DisplayName = getFieldDataChanged(props.profile?.displayName, name);
 			data.CoverImage = getFieldDataChanged(props.profile?.banner, bannerTx);
@@ -135,13 +134,19 @@ export default function ProfileManage(props: IProps) {
 
 			try {
 				if (props.profile && props.profile.id) {
-					let updateResponse = await messageResult({
+					const updateMessageId = await aoSend({
 						processId: props.profile.id,
 						action: 'Update-Profile',
-						tags: [{ name: 'ProfileProcess', value: props.profile.id }],
-						data: data,
 						wallet: arProvider.wallet,
+						data: data,
 					});
+
+					let updateResponse = await aoMessageResult({
+						processId: props.profile.id,
+						messageId: updateMessageId,
+						messageAction: 'Update-Profile',
+					});
+
 					if (updateResponse && updateResponse['Profile-Success']) {
 						setProfileResponse({
 							message: `${language.profileUpdated}!`,
@@ -156,8 +161,6 @@ export default function ProfileManage(props: IProps) {
 						});
 					}
 				} else {
-					const aos = connect();
-
 					let processSrc = null;
 					try {
 						const processSrcFetch = await fetch(getTxEndpoint(AO.profileSrc));
@@ -172,10 +175,11 @@ export default function ProfileManage(props: IProps) {
 							];
 
 							console.log('Spawning profile process...');
-							const processId = await aos.spawn({
+
+							const processId = await aoSpawn({
 								module: AO.module,
 								scheduler: AO.scheduler,
-								signer: createDataItemSigner(arProvider.wallet),
+								wallet: arProvider.wallet,
 								tags: profileTags,
 								data: JSON.stringify(data),
 							});
@@ -208,18 +212,19 @@ export default function ProfileManage(props: IProps) {
 							}
 							if (fetchedAssetId) {
 								console.log('Sending source eval...');
-								const evalMessage = await aos.message({
-									process: processId,
-									signer: createDataItemSigner(arProvider.wallet),
-									tags: [{ name: 'Action', value: 'Eval' }],
+								const evalMessage = await aoSend({
+									processId: processId,
+									action: 'Eval',
+									wallet: arProvider.wallet,
 									data: processSrc,
 								});
 
 								console.log(evalMessage);
 
-								const evalResult = await aos.result({
-									message: evalMessage,
-									process: processId,
+								const evalResult = await aoMessageResult({
+									processId: processId,
+									messageId: evalMessage,
+									messageAction: 'Eval',
 								});
 
 								console.log(evalResult);
@@ -227,12 +232,18 @@ export default function ProfileManage(props: IProps) {
 								await new Promise((r) => setTimeout(r, 1000));
 
 								console.log('Updating profile data...');
-								let updateResponse = await messageResult({
+
+								const updateMessageId = await aoSend({
 									processId: processId,
 									action: 'Update-Profile',
-									tags: null,
-									data: data,
 									wallet: arProvider.wallet,
+									data: data,
+								});
+
+								let updateResponse = await aoMessageResult({
+									processId: processId,
+									messageId: updateMessageId,
+									messageAction: 'Update-Profile',
 								});
 
 								if (updateResponse && updateResponse['Profile-Success']) {
